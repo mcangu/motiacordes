@@ -1,0 +1,17 @@
+.background {
+  /* Imagen de fondo */
+  background-image: url("assets/motichords.jpg");
+
+  /* Asegura que la imagen ocupe toda la pantalla */
+  background-size: cover;
+
+  /* Centra la imagen */
+  background-position: center;
+
+  /* Hace que la imagen no se repita */
+  background-repeat: no-repeat;
+
+  /* Configuración para que ocupe toda la pantalla */
+  height: 100%;
+  width: 100%;
+}
