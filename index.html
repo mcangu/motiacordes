@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Editor de Secuencias de Acordes</title>
+    <!-- Importando Materialize CSS -->
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css"
+      rel="stylesheet"
+    />
+    <!-- Importando Iconos de Material Design -->
+    <link
+      href="https://fonts.googleapis.com/icon?family=Material+Icons"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        min-height: 50vh;
+        background-color: #f5f5f5;
+      }
+      .parallax-container {
+        height: 0px;
+        background: url("https://source.unsplash.com/1600x900/?music") no-repeat
+          center center fixed;
+        background-size: cover;
+        position: relative;
+        z-index: 1;
+      }
+      .parallax-container::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(
+          0,
+          0,
+          0,
+          0.5
+        ); /* Oscurece el parallax para mejorar el contraste */
+        z-index: 2;
+      }
+      .controls {
+        position: sticky;
+        top: 0;
+        background-color: #ffffff;
+        padding: 20px;
+        box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1);
+        z-index: 1000;
+        width: 100%;
+      }
+      .container {
+        max-width: 1200px;
+        width: 100%;
+        padding: 20px;
+        box-shadow: 0px 0px 15px rgba(0, 0, 0, 0.1);
+        border-radius: 8px;
+        background-color: #ffffff;
+        margin: 20px auto; /* Centra el contenedor en la página */
+        position: relative;
+        z-index: 10;
+      }
+      .group-header {
+        display: flex;
+        align-items: center;
+        margin-bottom: 10px;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      .group-header input {
+        margin-bottom: 0;
+      }
+      .list-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px;
+        border-bottom: 1px solid #ddd;
+        cursor: move;
+        user-select: none;
+      }
+      .list-item:last-child {
+        border-bottom: none;
+      }
+      .drag-over {
+        background-color: #f1f1f1;
+      }
+      .repeat-btn {
+        margin-right: 10px;
+      }
+      .delete-btn {
+        margin-right: 10px;
+      }
+      @media (max-width: 600px) {
+        .controls input,
+        .controls button {
+          width: 100%;
+        }
+        .group-header input {
+          width: 100%;
+        }
+        .container {
+          margin-top: 20px; /* Ajuste para pantallas más pequeñas */
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="parallax-container">
+      <!-- Parallax background -->
+    </div>
+
+    <div class="controls">
+      <h5 class="center-align">Editor de Secuencias de Acordes</h5>
+      <div class="input-field">
+        <input type="text" id="groupNameInput" placeholder="Nombre del Grupo" />
+      </div>
+      <div class="input-field">
+        <input
+          type="text"
+          id="chordInput"
+          placeholder="Acorde (e.g., Cmaj, G7)"
+        />
+      </div>
+      <a class="waves-effect waves-light btn blue" onclick="addChord()"
+        >Añadir Acorde</a
+      >
+      <a class="waves-effect waves-light btn green" onclick="exportToPDF()"
+        >Descargar en PDF</a
+      >
+    </div>
+
+    <div class="container">
+      <div id="groupsContainer">
+        <!-- Grupos de acordes -->
+      </div>
+    </div>
+
+    <!-- Materialize JavaScript -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
+
+    <script>
+      let groups = [];
+
+      function loadGroups() {
+        groups = JSON.parse(localStorage.getItem("groups")) || [];
+        updateGroupsList();
+      }
+
+      function addChord() {
+        const groupName = document
+          .getElementById("groupNameInput")
+          .value.trim();
+        const chord = document.getElementById("chordInput").value.trim();
+        if (chord && groupName) {
+          const groupIndex = groups.findIndex(
+            (group) => group.name === groupName
+          );
+          if (groupIndex !== -1) {
+            groups[groupIndex].chords.push(chord);
+          } else {
+            groups.push({ name: groupName, chords: [chord] });
+          }
+          localStorage.setItem("groups", JSON.stringify(groups));
+          updateGroupsList();
+          document.getElementById("chordInput").value = "";
+        }
+      }
+
+      function addGroupToList(group, index) {
+        const container = document.getElementById("groupsContainer");
+        const groupDiv = document.createElement("div");
+        groupDiv.className = "card";
+
+        const headerDiv = document.createElement("div");
+        headerDiv.className = "card-content group-header";
+        headerDiv.innerHTML = `
+            <div class="input-field">
+                <input type="text" value="${group.name}" onblur="updateGroupName(${index}, this.value)">
+            </div>
+            <a class="waves-effect waves-light btn-small red" onclick="removeGroup(${index})"><i class="material-icons">delete</i></a>
+        `;
+        groupDiv.appendChild(headerDiv);
+
+        const list = document.createElement("ul");
+        list.className = "collection chord-list";
+
+        group.chords.forEach((chord, chordIndex) => {
+          const item = document.createElement("li");
+          item.className = "collection-item list-item";
+          item.draggable = true;
+          item.dataset.groupIndex = index;
+          item.dataset.chordIndex = chordIndex;
+          item.innerHTML = `
+                <input type="text" class="input-field" value="${chord}" onblur="updateChord(${index}, ${chordIndex}, this.value)">
+                <a class="waves-effect waves-light btn-small yellow darken-2 repeat-btn" onclick="repeatChord(${index}, ${chordIndex})"><i class="material-icons">repeat</i></a>
+                <a class="waves-effect waves-light btn-small red delete-btn" onclick="deleteChord(${index}, ${chordIndex})"><i class="material-icons">delete</i></a>
+            `;
+          item.addEventListener("dragstart", handleDragStart);
+          item.addEventListener("dragover", handleDragOver);
+          item.addEventListener("drop", handleDrop);
+          item.addEventListener("dragenter", handleDragEnter);
+          item.addEventListener("dragleave", handleDragLeave);
+          list.appendChild(item);
+        });
+
+        groupDiv.appendChild(list);
+        container.appendChild(groupDiv);
+      }
+
+      function removeGroup(index) {
+        groups.splice(index, 1);
+        localStorage.setItem("groups", JSON.stringify(groups));
+        updateGroupsList();
+      }
+
+      function deleteChord(groupIndex, chordIndex) {
+        groups[groupIndex].chords.splice(chordIndex, 1);
+        if (groups[groupIndex].chords.length === 0) {
+          removeGroup(groupIndex);
+        } else {
+          localStorage.setItem("groups", JSON.stringify(groups));
+          updateGroupsList();
+        }
+      }
+
+      function repeatChord(groupIndex, chordIndex) {
+        const chord = groups[groupIndex].chords[chordIndex];
+        groups[groupIndex].chords.splice(chordIndex + 1, 0, chord);
+        localStorage.setItem("groups", JSON.stringify(groups));
+        updateGroupsList();
+      }
+
+      function updateGroupName(index, newName) {
+        if (newName.trim()) {
+          groups[index].name = newName.trim();
+          localStorage.setItem("groups", JSON.stringify(groups));
+          updateGroupsList();
+        }
+      }
+
+      function updateChord(groupIndex, chordIndex, newChord) {
+        if (newChord.trim()) {
+          groups[groupIndex].chords[chordIndex] = newChord.trim();
+          localStorage.setItem("groups", JSON.stringify(groups));
+          updateGroupsList();
+        }
+      }
+
+      function updateGroupsList() {
+        const container = document.getElementById("groupsContainer");
+        container.innerHTML = "";
+        groups.forEach((group, index) => {
+          addGroupToList(group, index);
+        });
+      }
+
+      function exportToPDF() {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+
+        let yPosition = 10;
+        groups.forEach((group) => {
+          doc.text(`Grupo: ${group.name}`, 10, yPosition);
+          yPosition += 10;
+          group.chords.forEach((chord) => {
+            doc.text(chord, 20, yPosition);
+            yPosition += 10;
+          });
+          yPosition += 10;
+        });
+
+        doc.save("secuencias_de_acordes.pdf");
+      }
+
+      function handleDragStart(e) {
+        e.dataTransfer.setData(
+          "text/plain",
+          JSON.stringify({
+            groupIndex: e.target.dataset.groupIndex,
+            chordIndex: e.target.dataset.chordIndex,
+          })
+        );
+      }
+
+      function handleDragOver(e) {
+        e.preventDefault();
+      }
+
+      function handleDrop(e) {
+        e.preventDefault();
+        const draggedData = JSON.parse(e.dataTransfer.getData("text/plain"));
+        const draggedGroupIndex = parseInt(draggedData.groupIndex);
+        const draggedChordIndex = parseInt(draggedData.chordIndex);
+
+        const dropGroupIndex = parseInt(
+          e.target.closest(".list-item").dataset.groupIndex
+        );
+        const dropChordIndex = parseInt(
+          e.target.closest(".list-item").dataset.chordIndex
+        );
+
+        const draggedChord =
+          groups[draggedGroupIndex].chords[draggedChordIndex];
+
+        groups[draggedGroupIndex].chords.splice(draggedChordIndex, 1);
+        groups[dropGroupIndex].chords.splice(dropChordIndex, 0, draggedChord);
+
+        localStorage.setItem("groups", JSON.stringify(groups));
+        updateGroupsList();
+      }
+
+      function handleDragEnter(e) {
+        if (e.target.className.includes("list-item")) {
+          e.target.classList.add("drag-over");
+        }
+      }
+
+      function handleDragLeave(e) {
+        if (e.target.className.includes("list-item")) {
+          e.target.classList.remove("drag-over");
+        }
+      }
+
+      document
+        .getElementById("chordInput")
+        .addEventListener("keypress", function (e) {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            addChord();
+          }
+        });
+
+      window.onload = loadGroups;
+    </script>
+
+    <!-- Include jsPDF library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  </body>
+</html>
